@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>My Spend Journal 💰</title>
+
+  <!-- Inline Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%2306b6d4'/><text x='50%' y='60%' font-size='50' text-anchor='middle' fill='white'>$</text></svg>">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#0f172a;
+      --card:#0b1220;
+      --accent:#06b6d4;
+      --muted:#9aa4b2;
+      --glass:rgba(255,255,255,0.04);
+      font-family:"Poppins",system-ui,sans-serif;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;background:linear-gradient(180deg,#071020,#071a2a);color:#e6eef6;min-height:100vh}
+    .wrap{max-width:1100px;margin:auto;padding:24px}
+    header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:16px}
+    .brand{display:flex;align-items:center;gap:10px}
+    .logo{width:60px;height:60px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#22d3ee,#0ea5e9);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:28px;color:white;box-shadow:0 0 16px rgba(6,182,212,0.7)}
+    h1{margin:0;font-size:22px}
+    .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    select,button{border:none;padding:8px 10px;border-radius:8px;font-size:15px}
+    select{background:var(--glass);color:white}
+    .btn-primary{background:linear-gradient(90deg,var(--accent),#8b5cf6);color:#fff;font-weight:600;cursor:pointer}
+    .card{background:var(--card);border-radius:12px;padding:16px;box-shadow:0 6px 24px rgba(0,0,0,0.4)}
+    .layout{display:grid;grid-template-columns:1fr 400px;gap:20px}
+    ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;max-height:400px;overflow:auto}
+    li{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-radius:10px;background:rgba(255,255,255,0.04)}
+    li span{font-size:15px}
+    li button{background:transparent;color:#9aa4b2;font-size:13px;cursor:pointer;border:none}
+    .stats{display:flex;gap:16px;margin-top:12px;flex-wrap:wrap}
+    .stat{flex:1;background:rgba(255,255,255,0.03);padding:12px;border-radius:10px;text-align:center}
+    .stat h3{margin:0;font-size:16px;color:var(--muted)}
+    .stat p{margin:6px 0 0;font-weight:700;font-size:18px}
+    .footer{text-align:center;color:#9aa4b2;margin-top:40px;font-size:14px}
+    .empty{text-align:center;color:var(--muted);padding:30px}
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:999}
+    .modal{background:var(--card);padding:20px;border-radius:12px;width:350px}
+    label{font-size:13px;margin-bottom:4px;display:block}
+    input,select{width:100%;margin-bottom:10px;padding:8px;border-radius:8px;background:var(--glass);border:none;color:white}
+    @media(max-width:900px){.layout{grid-template-columns:1fr}}
+    
+    /* FAQ Styles */
+    .faq{margin-top:40px}
+    .faq h2{text-align:center;margin-bottom:16px;color:#22d3ee}
+    details{background:rgba(255,255,255,0.03);border-radius:10px;margin-bottom:10px;padding:12px 16px;cursor:pointer;transition:0.3s}
+    details summary{font-weight:600;list-style:none}
+    details[open]{background:rgba(255,255,255,0.07)}
+    details p{margin:8px 0 0;color:#cfd8e3;font-size:14px;line-height:1.6}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="logo">$</div>
+        <div>
+          <h1>My Spend Journal</h1>
+          <div style="font-size:13px;color:#9aa4b2;">Track your income & expenses smartly 💸</div>
+        </div>
+      </div>
+      <div class="controls">
+        <select id="monthSelect"></select>
+        <select id="yearSelect"></select>
+        <button class="btn-primary" id="addBtn">+ Add Entry</button>
+      </div>
+    </header>
+
+    <div class="stats">
+      <div class="stat"><h3>Total Income</h3><p id="incomeTotal">₹0</p></div>
+      <div class="stat"><h3>Total Expense</h3><p id="expenseTotal">₹0</p></div>
+      <div class="stat"><h3>Net Balance</h3><p id="netTotal">₹0</p></div>
+    </div>
+
+    <div class="layout" style="margin-top:20px">
+      <div class="card">
+        <h3 style="margin-top:0">Entries</h3>
+        <ul id="entryList"></ul>
+        <div class="empty" id="emptyMsg" style="display:none;">No entries yet — add your first one!</div>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">Chart Overview</h3>
+        <canvas id="chart"></canvas>
+      </div>
+    </div>
+
+    <!-- FAQ Section -->
+    <section class="faq">
+      <h2>📘 Frequently Asked Questions</h2>
+
+      <details>
+        <summary>💾 Where is my data saved?</summary>
+        <p>Your data is securely saved inside your browser using <b>localStorage</b>. It never leaves your device and is not uploaded to any server.</p>
+      </details>
+
+      <details>
+        <summary>🔁 Will I lose my data if I refresh or close the browser?</summary>
+        <p>No! Your entries are stored persistently. They remain safe even after refreshing or closing the browser — unless you manually clear browser storage or use incognito mode.</p>
+      </details>
+
+      <details>
+        <summary>🌐 Can I access the same data from another device?</summary>
+        <p>Currently no. Each device and browser keeps its own data. But you can export data manually (a future update will add cloud sync).</p>
+      </details>
+
+      <details>
+        <summary>✏️ Can I edit or delete an entry later?</summary>
+        <p>Yes! Every record has an <b>Edit</b> button — you can update or remove entries anytime you wish.</p>
+      </details>
+
+      <details>
+        <summary>📊 How does the chart work?</summary>
+        <p>The chart automatically visualizes your income and expense categories for the selected month. Switch months to see previous summaries.</p>
+      </details>
+
+      <details>
+        <summary>🧮 How are totals calculated?</summary>
+        <p><b>Total Income</b> sums up all “income” type entries, <b>Total Expense</b> sums all “expense” ones, and <b>Net Balance</b> shows the difference.</p>
+      </details>
+
+      <details>
+        <summary>🔐 Is my data private?</summary>
+        <p>Yes, 100%. Your data is private to your browser only — no accounts, no tracking, no uploads. You’re in full control.</p>
+      </details>
+    </section>
+
+    <div class="footer">© Developed by Raj</div>
+  </div>
+
+  <template id="modalTemplate">
+    <div class="modal-backdrop">
+      <div class="modal">
+        <h3 id="modalTitle">Add Entry</h3>
+        <label>Description</label><input id="desc" placeholder="e.g., Salary / Food">
+        <label>Amount (₹)</label><input id="amount" type="number" min="0" step="0.01">
+        <label>Type</label>
+        <select id="type"><option value="income">Income</option><option value="expense">Expense</option></select>
+        <label>Category</label>
+        <select id="category">
+          <option>Food</option><option>Transport</option><option>Shopping</option>
+          <option>Salary</option><option>Other</option>
+        </select>
+        <label>Date</label><input id="date" type="date">
+        <div style="text-align:right;margin-top:10px;">
+          <button id="saveBtn" class="btn-primary">Save</button>
+          <button id="cancelBtn" style="margin-left:6px;">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <script>
+    const $ = s => document.querySelector(s);
+    const fmt = n => "₹" + Number(n||0).toLocaleString("en-IN",{maximumFractionDigits:2});
+    const key = (y,m) => `spend-data-${y}-${m}`;
+    let y = new Date().getFullYear(), m = new Date().getMonth();
+
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    $("#monthSelect").innerHTML = months.map((mo,i)=>`<option value="${i}">${mo}</option>`).join("");
+    $("#yearSelect").innerHTML = Array.from({length:6},(_,i)=>y-2+i).map(Y=>`<option value="${Y}">${Y}</option>`).join("");
+    $("#monthSelect").value=m;$("#yearSelect").value=y;
+
+    const list = $("#entryList");
+    const chartCtx = document.getElementById("chart");
+    let chart;
+
+    function load(){ return JSON.parse(localStorage.getItem(key(y,m))||"[]"); }
+    function save(data){ localStorage.setItem(key(y,m),JSON.stringify(data)); }
+    function updateTotals(){
+      const data=load();
+      const income=data.filter(e=>e.type==="income").reduce((s,e)=>s+Number(e.amount),0);
+      const expense=data.filter(e=>e.type==="expense").reduce((s,e)=>s+Number(e.amount),0);
+      $("#incomeTotal").textContent=fmt(income);
+      $("#expenseTotal").textContent=fmt(expense);
+      $("#netTotal").textContent=fmt(income-expense);
+    }
+
+    function render(){
+      const data=load();
+      list.innerHTML="";
+      if(!data.length){$("#emptyMsg").style.display="block";} else $("#emptyMsg").style.display="none";
+      data.forEach((e,i)=>{
+        const li=document.createElement("li");
+        li.innerHTML=`<span>${e.desc} (${e.category})</span>
+                      <span style="color:${e.type==='income'?'#10b981':'#ef4444'}">${e.type==='income'?'+':'-'}${fmt(e.amount)}</span>
+                      <button>Edit</button>`;
+        li.querySelector("button").onclick=()=>openModal("edit",i,e);
+        list.appendChild(li);
+      });
+      updateTotals();
+      updateChart(data);
+    }
+
+    function updateChart(data){
+      const cats={};
+      data.forEach(e=>{
+        cats[e.category]=(cats[e.category]||0)+(e.type==='expense'?-e.amount:e.amount);
+      });
+      const labels=Object.keys(cats);
+      const vals=Object.values(cats);
+      if(chart) chart.destroy();
+      chart=new Chart(chartCtx,{type:"bar",data:{labels,datasets:[{data:vals,label:"Net",backgroundColor:"#06b6d4"}]},
+      options:{scales:{y:{beginAtZero:true}},plugins:{legend:{display:false}}}});
+    }
+
+    function openModal(mode="add", index=null, entry=null){
+      const tpl=$("#modalTemplate").content.cloneNode(true);
+      document.body.appendChild(tpl);
+      const modal=document.querySelector(".modal-backdrop");
+      const desc=$("#desc"), amt=$("#amount"), type=$("#type"), cat=$("#category"), date=$("#date");
+      if(mode==="edit"){
+        $("#modalTitle").textContent="Edit Entry";
+        desc.value=entry.desc; amt.value=entry.amount; type.value=entry.type; cat.value=entry.category; date.value=entry.date;
+      } else date.value=new Date().toISOString().slice(0,10);
+
+      $("#cancelBtn").onclick=()=>modal.remove();
+      $("#saveBtn").onclick=()=>{
+        if(!desc.value || !amt.value) return alert("Fill all fields");
+        const data=load();
+        const newEntry={desc:desc.value,amount:+amt.value,type:type.value,category:cat.value,date:date.value};
+        if(mode==="edit") data[index]=newEntry; else data.push(newEntry);
+        save(data); modal.remove(); render();
+      };
+    }
+
+    $("#addBtn").onclick=()=>openModal("add");
+    $("#monthSelect").onchange=()=>{m=+$("#monthSelect").value;render();};
+    $("#yearSelect").onchange=()=>{y=+$("#yearSelect").value;render();};
+    render();
+  </script>
+</body>
+</html>
